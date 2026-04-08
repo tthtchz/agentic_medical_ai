@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate agent on Ohio XML (default) or synthetic (dev only)."""
+"""Evaluate agent on OhioT1DM Training/Testing XML (leave-one-out)."""
 
 
 import argparse
@@ -13,11 +13,10 @@ sys.path.insert(0, str(ROOT))
 
 from sklearn.metrics import roc_auc_score
 
-from src.agent.loop import AgentConfig, run_agent_on_series, run_agent_on_train_test
+from src.agent.loop import AgentConfig, run_agent_on_train_test
 from src.data.dataset import (
     load_ohio_testing_subject,
     load_ohio_training_segments,
-    load_series,
     ohio_subject_ids,
 )
 
@@ -30,7 +29,7 @@ def _first_training_subject(training_dir: Path) -> str:
     if not ids:
         raise SystemExit(
             f"No *-ws-training.xml under {training_dir}. "
-            "Place OhioT1DM data under data/Training and data/Testing, or use --synthetic."
+            "Place OhioT1DM data under data/Training and data/Testing."
         )
     return ids[0]
 
@@ -38,22 +37,9 @@ def _first_training_subject(training_dir: Path) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=(
-            "Default: same leave-one-out as training — 11 Training XML + 1 Testing XML. "
-            "Use --synthetic for development without XML files."
+            "Same leave-one-out as training: 11 Training XML + 1 Testing XML for the holdout id."
         )
     )
-    ap.add_argument(
-        "--synthetic",
-        action="store_true",
-        help="Development only: single synthetic series (no Ohio files).",
-    )
-    ap.add_argument(
-        "--pooled",
-        action="store_true",
-        help="Concatenate all XML under train_dir and test_dir (no per-subject holdout).",
-    )
-    ap.add_argument("--source", choices=["synthetic", "csv", "dir"], default="synthetic")
-    ap.add_argument("--path", type=str, default=None)
     ap.add_argument(
         "--train_dir",
         type=str,
@@ -70,7 +56,7 @@ def main() -> None:
         "--holdout_subject",
         type=str,
         default=None,
-        help="Holdout id for leave-one-out (default: first id under train_dir). Ignored with --pooled.",
+        help="Holdout id (default: first id under train_dir).",
     )
     ap.add_argument("--ckpt", type=str, default="artifacts/lstm.pt")
     ap.add_argument("--lookback", type=int, default=24)
@@ -89,37 +75,18 @@ def main() -> None:
         sys.exit(1)
 
     cfg = AgentConfig(ckpt_path=ckpt)
-    holdout_used: str | None = None
-
-    if args.synthetic:
-        if args.pooled:
-            raise SystemExit("Do not combine --synthetic with --pooled.")
-        series = load_series(args.source, Path(args.path) if args.path else None)
-        traj, mem = run_agent_on_series(series, cfg, args.lookback, args.horizon)
-    elif args.pooled:
-        train_s = load_series("dir", Path(args.train_dir))
-        test_s = load_series("dir", Path(args.test_dir))
-        traj, mem = run_agent_on_train_test(
-            train_s,
-            test_s,
-            cfg,
-            args.lookback,
-            args.horizon,
-            max_test_steps=args.max_test_steps,
-        )
-    else:
-        td, tst = Path(args.train_dir), Path(args.test_dir)
-        holdout_used = args.holdout_subject or _first_training_subject(td)
-        train_s = load_ohio_training_segments(td, holdout_subject=holdout_used)
-        test_s = load_ohio_testing_subject(tst, holdout_used)
-        traj, mem = run_agent_on_train_test(
-            train_s,
-            test_s,
-            cfg,
-            args.lookback,
-            args.horizon,
-            max_test_steps=args.max_test_steps,
-        )
+    td, tst = Path(args.train_dir), Path(args.test_dir)
+    holdout_used = args.holdout_subject or _first_training_subject(td)
+    train_s = load_ohio_training_segments(td, holdout_subject=holdout_used)
+    test_s = load_ohio_testing_subject(tst, holdout_used)
+    traj, mem = run_agent_on_train_test(
+        train_s,
+        test_s,
+        cfg,
+        args.lookback,
+        args.horizon,
+        max_test_steps=args.max_test_steps,
+    )
 
     if not traj:
         print("No trajectory steps (series too short?)")
@@ -143,13 +110,7 @@ def main() -> None:
     guide_rate = sum(s.used_guideline for s in traj) / n
     ood_rate = sum(s.anomaly_ood for s in traj) / n
 
-    if args.synthetic:
-        split_note = "synthetic series (development)"
-    elif args.pooled:
-        split_note = "Ohio pooled: all XML concatenated in train_dir / test_dir"
-    else:
-        split_note = f"Ohio leave-one-out holdout={holdout_used}"
-
+    split_note = f"Ohio leave-one-out holdout={holdout_used}"
     print(f"--- metrics ({split_note}) ---")
     print(f"RMSE mg/dL: {rmse:.2f}")
     print(f"MAE mg/dL:  {mae:.2f}")

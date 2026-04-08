@@ -24,15 +24,15 @@ Optional LLM policy can replace `plan_step` without changing tools.
 
 **Non-trivial pattern:** the agent often skips the LSTM when the anomaly score is in-distribution and variability is low, but **forces** deep forecasting and uncertainty when the signal is erratic or historically miscalibrated—this matches the requirement to tie tool use to **uncertainty / distribution shift proxies**.
 
-## 4. Results and analysis (synthetic sanity run)
+## 4. Results and analysis
 
-After `python scripts/train_lstm.py --source synthetic` and `python scripts/run_agent_eval.py --source synthetic` (Apple Silicon / CPU example):
+After `python scripts/train_lstm.py ...` and `python scripts/run_agent_eval.py ...` on OhioT1DM XML:
 
-- **RMSE (holdout):** ~8 mg/dL (illustrative; depends on seed and epochs).
-- **AUROC (hypo below 70 mg/dL on future actual):** may be **undefined** if the holdout has no positive class; expect valid AUROC on longer Ohio trajectories with rare hypos.
-- **Behaviour:** LSTM call rate ~60–75%, OOD flags ~10–15%, guideline usage tied to critical branches.
+- **RMSE / MAE** on the holdout Testing trajectory (mg/dL scale in agent eval).
+- **AUROC (hypo below 70 mg/dL on future actual):** may be **undefined** if the holdout has no positive class.
+- **Behaviour:** LSTM call rate, OOD flags, and guideline usage depend on policy thresholds (see `src/agent/policy.py`).
 
-Re-run with your Ohio export to report definitive AUROC/RMSE. Train on the **same** subject ordering / split policy you describe in write-ups to avoid leakage.
+Report numbers using the **same** leave-one-out id and `data/Training` / `data/Testing` paths as in training to avoid leakage.
 
 ## 5. OhioT1DM data hookup
 
@@ -57,30 +57,24 @@ uvicorn demo_web.app:app --reload --host 127.0.0.1 --port 8000
 
 Open `http://127.0.0.1:8000/`, select the **same** holdout id (e.g. 540), click 加载轨迹.
 
-Train on all twelve training subjects; evaluate the agent with the full training concat for anomaly fit (official split style):
+Agent evaluation (same holdout as training):
 
 ```bash
-python scripts/train_lstm.py --source dir --path data/Training --epochs 40 --out artifacts/lstm.pt
-python scripts/run_agent_eval.py --train_dir data/Training --test_dir data/Testing
-# quicker smoke: e.g. --max_test_steps 4000
+python scripts/run_agent_eval.py --train_dir data/Training --test_dir data/Testing --holdout_subject 540 --ckpt artifacts/lstm.pt
+# optional: --max_test_steps 4000
 ```
-
-Other entry points:
-
-- **`--source dir --path …`:** concatenates all `*.xml` under the path (Ohio ws files use the parser above first).
-- **`--source csv --path …`:** columns `timestamp`, `glucose`, optional `insulin`, `carbs`.
 
 ## 6. Limitations and future work
 
 - **Regulatory / clinical:** research prototype only; not validated for dosing decisions.
-- **XML heterogeneity:** Ohio releases vary; CSV export from the official viewer is most reliable if XML parsing is brittle.
+- **OhioT1DM only:** loaders target the public `*-ws-training.xml` / `*-ws-testing.xml` schema.
 - **Policies:** rules are interpretable but suboptimal; learn a policy from logged tool outcomes, or add an LLM planner with structured tool JSON.
 - **Models:** Transformers (e.g., patch TST) and explicit probabilistic heads would strengthen uncertainty quantification used for routing.
 
 ## 7. Code map
 
 - `environment.yml` — conda 环境
-- `src/data/dataset.py` — synthetic + CSV + XML + Ohio 11/1 `load_ohio_training_segments` (gap-split, no cross-subject windows)
+- `src/data/dataset.py` — OhioT1DM XML, `load_ohio_training_segments` / `load_ohio_ws_xml_segments` (gap-split, no cross-subject windows)
 - `src/models/lstm_predictor.py` — LSTM forecaster
 - `src/tools/` — forecaster, anomaly, guideline tools
 - `src/agent/` — memory, policy, loop

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train GlucoseLSTM on Ohio XML (default) or optional CSV / synthetic (dev only)."""
+"""Train GlucoseLSTM on OhioT1DM *-ws-*.xml."""
 
 
 import argparse
@@ -16,18 +16,13 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from src.data.dataset import (
-    load_csv,
     load_ohio_testing_subject,
     load_ohio_training_segments,
-    load_series,
     ohio_subject_ids,
     time_split_segments,
 )
 from src.eval.windows import (
-    build_arrays,
-    build_arrays_with_stats,
     build_arrays_with_stats_segments,
-    zscore_stats,
     zscore_stats_segments,
 )
 from src.models.lstm_predictor import GlucoseLSTM
@@ -41,7 +36,7 @@ def _first_training_subject(training_dir: Path) -> str:
     if not ids:
         raise SystemExit(
             f"No *-ws-training.xml under {training_dir}. "
-            "Unpack OhioT1DM to data/Training and data/Testing, or pass --synthetic for development-only data."
+            "Unpack OhioT1DM to data/Training and data/Testing."
         )
     return ids[0]
 
@@ -49,23 +44,10 @@ def _first_training_subject(training_dir: Path) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=(
-            "Ohio default: train on 11 Training XML (holdout excluded), each file split on CGM gaps "
-            "(>1 h by default), then per-segment time split into train/validation; sliding windows never "
-            "cross subjects or gaps. Z-score from train portions only. Official Testing XML is only for "
-            "final test RMSE (after training), not for epoch selection."
+            "OhioT1DM: 11 *-ws-training.xml (holdout excluded), CGM gap segments, per-segment train/val; "
+            "windows never cross subjects or gaps. Z-score from train portions. Official *-ws-testing.xml "
+            "only for final test RMSE (not for epoch selection)."
         )
-    )
-    ap.add_argument(
-        "--synthetic",
-        action="store_true",
-        help="Development only: fake T1DM-like series (no XML required).",
-    )
-    ap.add_argument(
-        "--csv",
-        type=str,
-        default=None,
-        metavar="PATH",
-        help="Use a CSV time series instead of Ohio XML (see load_csv column names in dataset.py).",
     )
     ap.add_argument(
         "--training_dir",
@@ -119,12 +101,6 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    if args.synthetic and (args.csv or args.train_only):
-        raise SystemExit("Do not combine --synthetic with --csv or --train_only.")
-
-    if args.csv and (args.train_only or args.synthetic):
-        raise SystemExit("Use only one of --csv, --synthetic, or --train_only.")
-
     if not (0.5 < args.train_val_frac < 1.0):
         raise SystemExit("--train_val_frac must be between 0.5 and 1.0 (exclusive).")
 
@@ -132,27 +108,7 @@ def main() -> None:
     y_test: np.ndarray | None = None
     holdout_id: str | None = None
 
-    if args.synthetic:
-        series = load_series("synthetic", None)
-        X_np, y_np, norm = build_arrays(
-            series, lookback=args.lookback, horizon=args.horizon, normalize=True
-        )
-        n = len(X_np)
-        split = int(0.8 * n)
-        X_tr, y_tr = X_np[:split], y_np[:split]
-        X_va, y_va = X_np[split:], y_np[split:]
-        split_note = f"DEVELOPMENT synthetic only: window-level 80/20 ({n} windows)"
-    elif args.csv:
-        series = load_csv(Path(args.csv))
-        X_np, y_np, norm = build_arrays(
-            series, lookback=args.lookback, horizon=args.horizon, normalize=True
-        )
-        n = len(X_np)
-        split = int(0.8 * n)
-        X_tr, y_tr = X_np[:split], y_np[:split]
-        X_va, y_va = X_np[split:], y_np[split:]
-        split_note = f"CSV window-level 80/20 ({n} windows)"
-    elif args.train_only:
+    if args.train_only:
         train_segs = load_ohio_training_segments(
             Path(args.training_dir),
             holdout_subject=args.holdout_subject,

@@ -21,11 +21,10 @@ python scripts/run_agent_eval.py --train_dir data/Training --test_dir data/Testi
 | | |
 |--|--|
 | Web 演示 | `uvicorn demo_web.app:app --reload --host 127.0.0.1 --port 8000` |
-| 开发用合成数据 | `train_lstm.py --synthetic` / `run_agent_eval.py --synthetic` |
 
 ## 布局
 
-- `src/data/` — Ohio XML、CSV、合成数据  
+- `src/data/` — OhioT1DM XML → `GlucoseSeries`  
 - `src/models/` — `GlucoseLSTM`  
 - `src/tools/` — 预测、异常、指南  
 - `src/agent/` — 记忆、策略、循环  
