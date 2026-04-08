@@ -11,13 +11,13 @@
   <header>
     <h1>OhioT1DM 代理系统演示</h1>
     <p class="sub">
-      请先用 <code>--holdout_subject</code> 训练（11 人进 LSTM、留 1 人），此处下拉框选<strong>同一受试者</strong>加载其 <code>Testing</code> 轨迹。
+      流程：先用 <code>train_lstm.py --holdout_subject 540</code> 在 11 人 Training 上训 LSTM、在 540 的 Testing 上验；此处默认选受试者 <strong>540</strong>：异常检测仅在 <code>540-ws-training.xml</code> 上拟合，轨迹在 <code>540-ws-testing.xml</code>。
       页面展示：由<strong>过去</strong> CGM 窗口 → <strong>当前</strong>读数 → 对 <em>t+h</em> 的预测与实际，以及 LSTM / 指南等提示。
     </p>
   </header>
 
   <section class="controls">
-    <label>留一受试者（演示用测试集）
+    <label>受试者（默认 540：与 LSTM holdout 一致）
       <select id="subject"></select>
     </label>
     <label>最大步数（加快加载）

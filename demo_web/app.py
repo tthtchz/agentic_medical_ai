@@ -1,4 +1,4 @@
-"""Local web demo: Ohio 留一法轨迹与代理决策说明."""
+"""Web demo: LSTM checkpoint (trained with holdout 540) + anomaly fit on 540 Training, rollout on 540 Testing."""
 
 
 import sys
@@ -32,7 +32,10 @@ def api_subjects() -> dict:
 
 @app.get("/api/trajectory")
 def api_trajectory(
-    subject: str = Query(..., description="Holdout subject id, e.g. 540"),
+    subject: str = Query(
+        ...,
+        description="Subject id (uses data/Training/{id}-ws-training.xml and data/Testing/{id}-ws-testing.xml)",
+    ),
     max_steps: int = Query(
         2500, description="Cap rollout length for browser responsiveness"
     ),
@@ -42,7 +45,7 @@ def api_trajectory(
     if not CKPT_DEFAULT.is_file():
         raise HTTPException(
             status_code=404,
-            detail=f"Checkpoint not found: {CKPT_DEFAULT}. Train with --training_dir and --holdout_subject first.",
+            detail=f"Checkpoint not found: {CKPT_DEFAULT}. Run scripts/train_lstm.py first.",
         )
     try:
         return run_demo_trajectory_for_subject(
