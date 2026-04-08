@@ -1,0 +1,23 @@
+# 在仓库根目录执行:
+#   conda env create -f environment.yml
+#   conda activate agentic_medical_ai
+# 更新已有环境:
+#   conda env update -f environment.yml --prune
+name: agentic_medical_ai
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pytorch>=2.1
+  - numpy>=1.24
+  - pandas>=2
+  - scikit-learn>=1.3
+  - tqdm
+  - matplotlib>=3.8
+  - jupyter
+  - fastapi>=0.109
+  - uvicorn>=0.27
+  - httptools
+  - watchfiles
+  - uvloop
+  - websockets

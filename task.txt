@@ -1,0 +1,45 @@
+Agentic AI for Health Time Series
+
+Objective
+Design and implement a prototype agentic AI system that can analyze multivariate health time series
+data, make adaptive decisions, and optionally invoke tools (e.g., models, APIs, or functions) to improve
+predictions or insights.
+Problem Setting
+You are given a health time series dataset (real or simulated), such as:
+• ICU patient data (e.g., vitals: heart rate, SpO2, blood pressure)
+• Wearable data (e.g., CGM, activity, sleep, HRV)
+• Mental health signals (e.g., speech-derived features, mood scores)
+Choose the one that you prefer.
+Example Tasks (choose one or propose your own):
+1. Early warning system (e.g., detect deterioration events)
+2. State tracking (e.g., stress, depression trajectory)
+3. Adaptive intervention recommendation (e.g., when to trigger alerts)
+Core Requirement: Agentic Behaviour
+Your system must go beyond static prediction. It should demonstrate agentic properties, such as:
+• Planning: deciding what to do next given partial observations
+• Tool use: calling external modules (e.g., forecasting model, anomaly detector, retrieval system)
+• Memory: maintaining state across time steps
+• Reflection / adaptation: adjusting strategy based on past errors or uncertainty
+Technical Requirements
+• Use a public dataset or your dataset, such as MIMIC, PhysioNet, or a synthetic dataset if needed.
+• Implement at least one model, such as an RNN, LSTM, GRU, or a Transformer-based time
+series model.
+• Implement an agent loop. The agent should include a policy, either rule-based or LLM-driven,
+and a tool interface with at least two tools. Optionally, use an LLM, via API or a local model,
+for decision-making.
+• Demonstrate non-trivial tool use. For example, call a forecasting model only when uncertainty
+is high, use retrieval when encountering out-of-distribution signals, or trigger explanations or
+summaries when appropriate.
+• Evaluate predictive performance, using metrics such as AUROC or RMSE, as well as agent
+behaviour quality, including when and how tools are used.
+Deliverables
+Code
+Short Report, Include:
+• Problem formulation
+• Model + agent design
+• Tool design and usage strategy
+• Results and analysis
+• Limitations and future work
+(Optional but Strongly Encouraged)
+• Demo notebook or visualization
+• Example trajectories showing agent decisions over time
