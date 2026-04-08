@@ -62,6 +62,16 @@ def api_trajectory(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@app.get("/static/app.js")
+def app_js() -> FileResponse:
+    """Serve with no-store so the browser does not keep an old app.js (e.g. Chinese UI strings)."""
+    return FileResponse(
+        STATIC / "app.js",
+        media_type="application/javascript; charset=utf-8",
+        headers={"Cache-Control": "no-store, max-age=0, must-revalidate"},
+    )
+
+
 app.mount(
     "/static",
     StaticFiles(directory=str(STATIC)),
@@ -71,4 +81,7 @@ app.mount(
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(STATIC / "index.html")
+    return FileResponse(
+        STATIC / "index.html",
+        headers={"Cache-Control": "no-cache"},
+    )

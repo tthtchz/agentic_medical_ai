@@ -1,29 +1,36 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OhioT1DM · 代理血糖演示</title>
+  <title>OhioT1DM · Agentic CGM demo</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <header>
-    <h1>OhioT1DM 代理系统演示</h1>
-    <p class="sub">
-      流程：先用 <code>train_lstm.py --holdout_subject 540</code> 在 11 人 Training 上训 LSTM、在 540 的 Testing 上验；此处默认选受试者 <strong>540</strong>：异常检测仅在 <code>540-ws-training.xml</code> 上拟合，轨迹在 <code>540-ws-testing.xml</code>。
-      页面展示：由<strong>过去</strong> CGM 窗口 → <strong>当前</strong>读数 → 对 <em>t+h</em> 的预测与实际，以及 LSTM / 指南等提示。
-    </p>
+    <h1>OhioT1DM Agent Demo</h1>
+    <div class="intro">
+      <p class="sub">
+        Train the LSTM with <code>train_lstm.py --holdout_subject 540</code> (11 other subjects’ Training; evaluate on 540’s Testing during training).
+      </p>
+      <p class="sub">
+        Here, default subject <strong>540</strong>: the anomaly detector is fitted on <code>540-ws-training.xml</code> only; the trajectory is rolled out on <code>540-ws-testing.xml</code>.
+      </p>
+      <p class="sub">
+        The view shows the <strong>past</strong> CGM window → <strong>current</strong> reading → prediction vs. actual at <em>t+h</em>, plus LSTM / guideline notes.
+      </p>
+    </div>
   </header>
 
   <section class="controls">
-    <label>受试者（默认 540：与 LSTM holdout 一致）
+    <label>Subject (default 540, same as LSTM holdout)
       <select id="subject"></select>
     </label>
-    <label>最大步数（加快加载）
+    <label>Max steps (faster load)
       <input type="number" id="maxSteps" value="2500" min="200" step="100" />
     </label>
-    <button type="button" id="loadBtn">加载轨迹</button>
+    <button type="button" id="loadBtn">Load trajectory</button>
     <span id="status" class="status"></span>
   </section>
 
@@ -32,30 +39,46 @@
   </section>
 
   <section class="timeline">
-    <label>时间步（决策时刻 <code>t</code>） <span id="tInfo"></span>
+    <label>Time step (decision at <code>t</code>) <span id="tInfo"></span>
       <input type="range" id="stepSlider" min="0" max="0" value="0" />
     </label>
   </section>
 
   <section class="panels">
     <div class="panel">
-      <h2>由过去到当前</h2>
-      <p id="ctxPast" class="mono"></p>
-      <p id="ctxNow" class="highlight"></p>
-      <p id="ctxFuture" class="mono"></p>
+      <h2>Past → current → horizon</h2>
+      <div class="ctx-block">
+        <div class="ctx-heading" id="ctxPastHeading">Past CGM window</div>
+        <p id="ctxPast" class="mono"></p>
+      </div>
+      <div class="ctx-block">
+        <div class="ctx-heading">Current time</div>
+        <p id="ctxNow" class="highlight"></p>
+      </div>
+      <div class="ctx-block">
+        <div class="ctx-heading" id="ctxFutureHeading">Horizon (t + H)</div>
+        <p id="ctxFuture" class="mono"></p>
+      </div>
     </div>
     <div class="panel">
-      <h2>代理决策与提示</h2>
+      <h2>Policy &amp; hints</h2>
+      <p class="ctx-heading">Tool flags</p>
       <ul id="flags" class="flags"></ul>
-      <p id="rationale" class="rationale"></p>
-      <blockquote id="guideline" class="guideline"></blockquote>
+      <div class="ctx-block">
+        <div class="ctx-heading">Rationale</div>
+        <p id="rationale" class="rationale"></p>
+      </div>
+      <div class="ctx-block">
+        <div class="ctx-heading">Guideline snippet</div>
+        <blockquote id="guideline" class="guideline"></blockquote>
+      </div>
     </div>
   </section>
 
   <footer>
-    <p>启动：<code>conda activate agentic_medical_ai</code> · 项目根目录执行 <code>uvicorn demo_web.app:app --reload --host 127.0.0.1 --port 8000</code></p>
+    <p>Run: <code>conda activate agentic_medical_ai</code> · from repo root <code>uvicorn demo_web.app:app --reload --host 127.0.0.1 --port 8000</code></p>
   </footer>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

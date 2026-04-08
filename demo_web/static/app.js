@@ -1,3 +1,7 @@
+/**
+ * Chart titles / legend / axes: see buildChart().
+ * Past → horizon text and policy tool lines: see updatePanels().
+ */
 let chart;
 let payload = null;
 
@@ -14,7 +18,7 @@ async function initSubjects() {
   for (const id of d.subject_ids) {
     const o = document.createElement("option");
     o.value = id;
-    o.textContent = `受试者 ${id}`;
+    o.textContent = `Subject ${id}`;
     subjectEl.appendChild(o);
   }
   if (d.default_subject) {
@@ -25,7 +29,7 @@ async function initSubjects() {
 function fmtArr(a, max = 8) {
   if (!a || !a.length) return "—";
   const head = a.slice(0, max);
-  const tail = a.length > max ? ` …(共${a.length}点)` : "";
+  const tail = a.length > max ? ` … (total ${a.length} values)` : "";
   return head.map((x) => Number(x).toFixed(0)).join(", ") + tail;
 }
 
@@ -40,19 +44,28 @@ function updatePanels(idx) {
   const now = g[t];
   const futIdx = t + H;
 
+  const pastHeading = document.getElementById("ctxPastHeading");
+  if (pastHeading) {
+    pastHeading.textContent = `Past CGM (indices t-${L} ... t-1), mg/dL`;
+  }
+  const futHeading = document.getElementById("ctxFutureHeading");
+  if (futHeading) {
+    futHeading.textContent = `Horizon t+${H} (future index ${futIdx})`;
+  }
+
   document.getElementById("ctxPast").textContent =
-    `过去 ${L} 步 CGM（t−${L}…t−1，mg/dL）：\n` + fmtArr(past, 12);
+    fmtArr(past, 12) + `\n(Total ${past.length} points)`;
   document.getElementById("ctxNow").textContent =
-    `当前时刻 t=${t}：最新 CGM = ${Number(now).toFixed(1)} mg/dL（5 分钟一点）`;
+    `t = ${t} · Latest CGM = ${Number(now).toFixed(1)} mg/dL (5 min intervals)`;
   document.getElementById("ctxFuture").textContent =
-    `目标时刻 t+${H}=${futIdx}：预测 = ${s.predicted_glucose.toFixed(1)} mg/dL · 实际 = ${s.actual_glucose.toFixed(1)} mg/dL`;
+    `Predicted = ${s.predicted_glucose.toFixed(1)} mg/dL · Actual = ${s.actual_glucose.toFixed(1)} mg/dL`;
 
   const flags = document.getElementById("flags");
   flags.innerHTML = `
-    <li class="${s.used_lstm ? "on" : "off"}">LSTM 预测工具：${s.used_lstm ? "已调用" : "未调用（沿用 cheap baseline）"}</li>
-    <li class="${s.used_mc ? "on" : "off"}">MC dropout 不确定性：${s.used_mc ? "是" : "否"}</li>
-    <li class="${s.used_guideline ? "on" : "off"}">指南/检索提示：${s.used_guideline ? "已展示" : "无"}</li>
-    <li class="${s.anomaly_ood ? "on" : "off"}">异常检测 OOD：${s.anomaly_ood ? "是" : "否"}</li>
+    <li class="${s.used_lstm ? "on" : "off"}">LSTM prediction: ${s.used_lstm ? "on" : "off (persistence baseline)"}</li>
+    <li class="${s.used_mc ? "on" : "off"}">MC dropout uncertainty: ${s.used_mc ? "yes" : "no"}</li>
+    <li class="${s.used_guideline ? "on" : "off"}">Guideline / retrieval hint: ${s.used_guideline ? "shown" : "none"}</li>
+    <li class="${s.anomaly_ood ? "on" : "off"}">Anomaly detection OOD: ${s.anomaly_ood ? "yes" : "no"}</li>
   `;
   document.getElementById("rationale").textContent = s.rationale || "—";
   const gq = document.getElementById("guideline");
@@ -64,7 +77,7 @@ function updatePanels(idx) {
     gq.textContent = "";
   }
 
-  document.getElementById("tInfo").textContent = `（${idx + 1} / ${payload.steps.length}）`;
+  document.getElementById("tInfo").textContent = `(${idx + 1} / ${payload.steps.length})`;
 }
 
 function buildChart() {
@@ -90,7 +103,7 @@ function buildChart() {
       labels,
       datasets: [
         {
-          label: "CGM（该受试者测试集）",
+          label: "CGM (subject test set)",
           data: g,
           borderColor: "rgba(37, 99, 235, 0.85)",
           backgroundColor: "rgba(37, 99, 235, 0.06)",
@@ -100,7 +113,7 @@ function buildChart() {
           borderWidth: 1.5,
         },
         {
-          label: `模型/代理预测（对齐 t+${H}）`,
+          label: `Model / agent prediction (aligned t+${H})`,
           data: predAt,
           borderColor: "rgba(234, 88, 12, 0.95)",
           showLine: false,
@@ -108,7 +121,7 @@ function buildChart() {
           pointBackgroundColor: "rgba(234, 88, 12, 0.95)",
         },
         {
-          label: "同一时刻实际 CGM",
+          label: "Actual CGM at same time",
           data: actAt,
           borderColor: "rgba(22, 163, 74, 0.9)",
           showLine: false,
@@ -122,11 +135,11 @@ function buildChart() {
       maintainAspectRatio: false,
       scales: {
         x: {
-          title: { display: true, text: "时间索引（5 min/步）" },
+          title: { display: true, text: "Time index (5 min/step)" },
           ticks: { maxTicksLimit: 16 },
         },
         y: {
-          title: { display: true, text: "血糖 mg/dL" },
+          title: { display: true, text: "Blood glucose (mg/dL)" },
         },
       },
       plugins: {
@@ -142,7 +155,7 @@ slider.addEventListener("input", () => {
 });
 
 loadBtn.addEventListener("click", async () => {
-  statusEl.textContent = "加载中…";
+  statusEl.textContent = "Loading…";
   const sub = subjectEl.value;
   const maxSteps = Number(maxStepsEl.value) || 2500;
   try {
@@ -158,9 +171,9 @@ loadBtn.addEventListener("click", async () => {
     slider.value = "0";
     buildChart();
     updatePanels(0);
-    statusEl.textContent = `受试者 ${payload.subject} · 共 ${payload.steps.length} 个决策点`;
+    statusEl.textContent = `Subject ${payload.subject} · ${payload.steps.length} decision steps`;
   } catch (err) {
-    statusEl.textContent = "错误：" + err.message;
+    statusEl.textContent = "Error: " + err.message;
     console.error(err);
   }
 });
