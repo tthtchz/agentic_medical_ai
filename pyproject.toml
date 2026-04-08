@@ -1,5 +1,0 @@
-[project]
-name = "agentic_medical_ai"
-version = "0.1.0"
-requires-python = ">=3.11"
-# 运行时依赖见根目录 environment.yml（conda 安装，不再维护 requirements.txt）。

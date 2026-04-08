@@ -18,8 +18,6 @@ from src.tools.guidelines import GuidelineRetrievalTool
 
 # Minimum train windows for ``MultivariateAnomalyTool.fit`` in train/test split mode.
 _MIN_TRAIN_WINDOWS = 10
-# Ensure enough past + future steps inside the train slice (single-series split).
-_EXTRA_STEPS_BEYOND_LOOKBACK_HORIZON = 50
 # Truncate guideline text for trajectory logging.
 _GUIDELINE_SNIPPET_MAX_LEN = 180
 # Subsample training windows for IsolationForest when above ``cfg.anomaly_fit_max_windows``.
@@ -33,10 +31,9 @@ _ANOMALY_FIT_SUBSAMPLE_SEED = 0
 
 @dataclass
 class AgentConfig:
-    """Checkpoint path, train fraction, and anomaly-tool limits."""
+    """Checkpoint path and anomaly-tool limits."""
 
     ckpt_path: Path
-    train_fraction: float = 0.7
     anomaly_contamination: float = 0.06
     # Cap windows passed to ``IsolationForest.fit`` (full Ohio train is 100k+ slices).
     anomaly_fit_max_windows: int = 8000
@@ -138,63 +135,6 @@ def _one_step(
 # -----------------------------------------------------------------------------
 # Runs
 # -----------------------------------------------------------------------------
-
-
-def run_agent_on_series(
-    series: GlucoseSeries,
-    cfg: AgentConfig,
-    lookback: int,
-    horizon: int,
-) -> tuple[list[AgentTrajectoryStep], AgentMemory]:
-    """
-    Time-split one series: train portion builds anomaly windows; test portion runs the agent.
-
-    If the train slice would be shorter than ``lookback + horizon + 50`` (see
-    ``_EXTRA_STEPS_BEYOND_LOOKBACK_HORIZON``), the split is expanded to that minimum.
-    """
-    vals = series.values.astype(np.float64)
-    t_end, _ = vals.shape
-    split = int(cfg.train_fraction * t_end)
-    min_split = lookback + horizon + _EXTRA_STEPS_BEYOND_LOOKBACK_HORIZON
-    if split < min_split:
-        split = min_split
-    train_vals = vals[:split]
-    test_start = split
-
-    windows_train: list[np.ndarray] = []
-    for t in range(lookback, split - horizon):
-        windows_train.append(train_vals[t - lookback : t])
-    windows_train_arr = np.stack(windows_train)
-    windows_train_arr = _maybe_subsample_windows(
-        windows_train_arr, cfg.anomaly_fit_max_windows
-    )
-
-    anomaly_tool = MultivariateAnomalyTool(contamination=cfg.anomaly_contamination)
-    anomaly_tool.fit(windows_train_arr)
-
-    forecaster = LstmForecastTool(cfg.ckpt_path)
-    _assert_forecaster_matches_ckpt(forecaster, lookback, horizon)
-
-    guideline_tool = GuidelineRetrievalTool()
-    memory = AgentMemory()
-    traj: list[AgentTrajectoryStep] = []
-
-    for t in range(test_start, t_end - horizon):
-        window = vals[t - lookback : t]
-        true_future = float(vals[t + horizon, 0])
-        traj.append(
-            _one_step(
-                t,
-                window,
-                true_future,
-                anomaly_tool,
-                forecaster,
-                guideline_tool,
-                memory,
-            )
-        )
-
-    return traj, memory
 
 
 def run_agent_on_train_test(

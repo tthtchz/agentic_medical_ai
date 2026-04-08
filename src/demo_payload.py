@@ -7,28 +7,34 @@ from src.agent.loop import AgentConfig, run_agent_on_train_test
 from src.data.dataset import (
     concat_glucose_series,
     load_ohio_testing_subject,
-    load_ohio_training_segments,
+    load_ohio_training_subject,
     ohio_subject_ids,
 )
 
 
 def run_demo_trajectory_for_subject(
     repo_root: Path,
-    holdout_subject: str,
+    subject: str,
     ckpt: Path,
     lookback: int = 24,
     horizon: int = 6,
     max_test_steps: int | None = 2500,
 ) -> dict:
+    """
+    Fit the anomaly tool on **this subject's** ``{id}-ws-training.xml`` windows only;
+    run the agent on ``{id}-ws-testing.xml`` (same id).
+
+    Uses pre-split Ohio files under ``data/Training`` and ``data/Testing``.
+    """
     train_dir = repo_root / "data" / "Training"
     test_dir = repo_root / "data" / "Testing"
-    train_s = load_ohio_training_segments(train_dir, holdout_subject=holdout_subject)
-    test_segs = load_ohio_testing_subject(test_dir, holdout_subject)
+    train_s = load_ohio_training_subject(train_dir, subject)
+    test_segs = load_ohio_testing_subject(test_dir, subject)
     test_s = concat_glucose_series(test_segs)
     cfg = AgentConfig(ckpt_path=Path(ckpt))
     traj, mem = run_agent_on_train_test(
         train_s,
-        test_s,
+        test_segs,
         cfg,
         lookback,
         horizon,
@@ -50,7 +56,7 @@ def run_demo_trajectory_for_subject(
         for s in traj
     ]
     return {
-        "subject": holdout_subject,
+        "subject": subject,
         "lookback": lookback,
         "horizon": horizon,
         "glucose_mgdl": g,
@@ -62,7 +68,9 @@ def run_demo_trajectory_for_subject(
 def list_demo_subjects(repo_root: Path) -> dict:
     td = repo_root / "data" / "Training"
     ids = ohio_subject_ids(td)
+    preferred = "540"
+    default = preferred if preferred in ids else (ids[0] if ids else None)
     return {
         "subject_ids": ids,
-        "default_subject": ids[0] if ids else None,
+        "default_subject": default,
     }

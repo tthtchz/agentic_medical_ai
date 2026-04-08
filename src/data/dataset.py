@@ -332,6 +332,21 @@ def load_ohio_training_segments(
     return out
 
 
+def load_ohio_training_subject(
+    training_dir: Path,
+    subject_id: str,
+    gap_minutes: float = _DEFAULT_CGM_GAP_MINUTES,
+    grid_minutes: float = _DEFAULT_GRID_MINUTES,
+) -> list[GlucoseSeries]:
+    """Single subject: ``{id}-ws-training.xml`` as contiguous CGM segments (Ohio Training split)."""
+    path = Path(training_dir) / f"{subject_id}-ws-training.xml"
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Expected Training XML at {path}. Place OhioT1DM Training export under this directory."
+        )
+    return load_ohio_ws_xml_segments(path, grid_minutes=grid_minutes, gap_minutes=gap_minutes)
+
+
 def load_ohio_testing_subject(
     testing_dir: Path,
     subject_id: str,

@@ -31,16 +31,6 @@ DEFAULT_TRAINING = ROOT / "data" / "Training"
 DEFAULT_TESTING = ROOT / "data" / "Testing"
 
 
-def _first_training_subject(training_dir: Path) -> str:
-    ids = ohio_subject_ids(training_dir)
-    if not ids:
-        raise SystemExit(
-            f"No *-ws-training.xml under {training_dir}. "
-            "Unpack OhioT1DM to data/Training and data/Testing."
-        )
-    return ids[0]
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=(
@@ -64,8 +54,8 @@ def main() -> None:
     ap.add_argument(
         "--holdout_subject",
         type=str,
-        default=None,
-        help="Leave-one-out subject id (default: first id found under training_dir).",
+        default="540",
+        help="Leave-one-out subject id: train on all other *-ws-training.xml; test on this id's Testing XML (default 540).",
     )
     ap.add_argument(
         "--train_only",
@@ -125,7 +115,7 @@ def main() -> None:
         split_note = f"Ohio Training XML only, window-level 80/20 ({n} windows)"
     else:
         td, tst = Path(args.training_dir), Path(args.testing_dir)
-        holdout = args.holdout_subject or _first_training_subject(td)
+        holdout = args.holdout_subject
         holdout_id = str(holdout)
         all_sids = ohio_subject_ids(td)
         train_sids = sorted(s for s in all_sids if str(s) != str(holdout))

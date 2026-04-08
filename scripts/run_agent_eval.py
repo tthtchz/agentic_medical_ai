@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate agent on OhioT1DM Training/Testing XML (leave-one-out)."""
+"""Evaluate agent: anomaly fit on subject Training XML, rollout on same id Testing XML (default subject 540)."""
 
 
 import argparse
@@ -14,30 +14,21 @@ sys.path.insert(0, str(ROOT))
 from sklearn.metrics import roc_auc_score
 
 from src.agent.loop import AgentConfig, run_agent_on_train_test
-from src.data.dataset import (
-    load_ohio_testing_subject,
-    load_ohio_training_segments,
-    ohio_subject_ids,
-)
+from src.data.dataset import load_ohio_testing_subject, load_ohio_training_subject
 
 DEFAULT_TRAIN = ROOT / "data" / "Training"
 DEFAULT_TEST = ROOT / "data" / "Testing"
 
 
-def _first_training_subject(training_dir: Path) -> str:
-    ids = ohio_subject_ids(training_dir)
-    if not ids:
-        raise SystemExit(
-            f"No *-ws-training.xml under {training_dir}. "
-            "Place OhioT1DM data under data/Training and data/Testing."
-        )
-    return ids[0]
+# Default agent eval subject: same id as LSTM holdout in this project (11 train, 540 test).
+DEFAULT_AGENT_SUBJECT = "540"
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=(
-            "Same leave-one-out as training: 11 Training XML + 1 Testing XML for the holdout id."
+            "Fit anomaly on {subject}-ws-training.xml; rollout on {subject}-ws-testing.xml. "
+            "Matches web demo. LSTM checkpoint should be trained with --holdout_subject matching subject."
         )
     )
     ap.add_argument(
@@ -53,10 +44,10 @@ def main() -> None:
         help=f"Ohio Testing folder (default: {DEFAULT_TEST})",
     )
     ap.add_argument(
-        "--holdout_subject",
+        "--subject",
         type=str,
-        default=None,
-        help="Holdout id (default: first id under train_dir).",
+        default=DEFAULT_AGENT_SUBJECT,
+        help=f"Subject id for Training+Testing XML (default: {DEFAULT_AGENT_SUBJECT}).",
     )
     ap.add_argument("--ckpt", type=str, default="artifacts/lstm.pt")
     ap.add_argument("--lookback", type=int, default=24)
@@ -76,9 +67,9 @@ def main() -> None:
 
     cfg = AgentConfig(ckpt_path=ckpt)
     td, tst = Path(args.train_dir), Path(args.test_dir)
-    holdout_used = args.holdout_subject or _first_training_subject(td)
-    train_s = load_ohio_training_segments(td, holdout_subject=holdout_used)
-    test_s = load_ohio_testing_subject(tst, holdout_used)
+    subject_used = args.subject
+    train_s = load_ohio_training_subject(td, subject_used)
+    test_s = load_ohio_testing_subject(tst, subject_used)
     traj, mem = run_agent_on_train_test(
         train_s,
         test_s,
@@ -110,7 +101,7 @@ def main() -> None:
     guide_rate = sum(s.used_guideline for s in traj) / n
     ood_rate = sum(s.anomaly_ood for s in traj) / n
 
-    split_note = f"Ohio leave-one-out holdout={holdout_used}"
+    split_note = f"subject {subject_used} (Training fit → Testing rollout)"
     print(f"--- metrics ({split_note}) ---")
     print(f"RMSE mg/dL: {rmse:.2f}")
     print(f"MAE mg/dL:  {mae:.2f}")
