@@ -21,7 +21,7 @@ from src.data.dataset import (
     ohio_subject_ids,
     time_split_segments,
 )
-from src.eval.windows import (
+from src.data.windows import (
     build_arrays_with_stats_segments,
     zscore_stats_segments,
 )

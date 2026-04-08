@@ -74,7 +74,8 @@ python scripts/run_agent_eval.py --train_dir data/Training --test_dir data/Testi
 ## 7. Code map
 
 - `environment.yml` — conda 环境
-- `src/data/dataset.py` — OhioT1DM XML, `load_ohio_training_segments` / `load_ohio_ws_xml_segments` (gap-split, no cross-subject windows)
+- `src/data/dataset.py` — OhioT1DM XML → `GlucoseSeries` (gap-split, no cross-subject windows)
+- `src/data/windows.py` — z-score on train segments + sliding-window `(X, y)` (no cross-segment windows)
 - `src/models/lstm_predictor.py` — LSTM forecaster
 - `src/tools/` — forecaster, anomaly, guideline tools
 - `src/agent/` — memory, policy, loop
